@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF 노무 FAQ 어시스턴트</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <h1>PDF 노무 FAQ 어시스턴트</h1>
+
+    <!-- 대화 내역이 말풍선으로 쌓이는 영역 -->
+    <div id="chat-box"></div>
+
+    <!-- 질문 입력 영역 -->
+    <div id="input-area">
+      <input
+        id="question"
+        type="text"
+        placeholder="질문을 입력하세요... (최대 500자)"
+        maxlength="500"
+        autocomplete="off"
+      >
+      <button id="send-btn">전송</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
