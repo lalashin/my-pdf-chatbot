@@ -25,14 +25,30 @@ body {
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
 }
 
-/* 제목 영역 */
-h1 {
-  padding: 16px 20px;
+/* 상단 제목 + 일일 한도 */
+.app-header {
+  flex-shrink: 0;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.app-header h1 {
+  padding: 16px 20px 8px;
   font-size: 18px;
   font-weight: 600;
   color: #1a1a1a;
-  border-bottom: 1px solid #e5e5e5;
-  background-color: #ffffff;
+}
+
+/* 오늘 남은 질문 횟수 */
+.daily-quota {
+  padding: 0 20px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #007aff;
+}
+
+.daily-quota.daily-quota--exhausted {
+  color: #c62828;
 }
 
 /* 대화 내역 영역 — 스크롤 가능 */

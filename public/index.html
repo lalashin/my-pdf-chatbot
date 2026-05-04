@@ -8,7 +8,11 @@
 </head>
 <body>
   <div id="app">
-    <h1>PDF 노무 FAQ 어시스턴트</h1>
+    <header class="app-header">
+      <h1>PDF 노무 FAQ 어시스턴트</h1>
+      <!-- 일일 질문 한도 표시 (localStorage 기준, 자정에 자동 초기화) -->
+      <p id="daily-quota" class="daily-quota" aria-live="polite"></p>
+    </header>
 
     <!-- 대화 내역이 말풍선으로 쌓이는 영역 -->
     <div id="chat-box"></div>
