@@ -1,0 +1,6 @@
+.env
+node_modules/
+.bkit/
+.vercel/
+dist/
+.DS_Store
