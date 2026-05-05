@@ -5,7 +5,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const pdfParse = require('pdf-parse');
-const OpenAI = require('openai');
+const { OpenAI } = require('openai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +19,11 @@ const CONTEXT_FULL_DOC_THRESHOLD = parseInt(process.env.CONTEXT_FULL_DOC_THRESHO
 const RETRIEVAL_CONTEXT_MAX_CHARS = parseInt(process.env.RETRIEVAL_CONTEXT_MAX_CHARS || '32000', 10);
 const CHUNK_SIZE = parseInt(process.env.RAG_CHUNK_SIZE || '1000', 10);
 const CHUNK_OVERLAP = parseInt(process.env.RAG_CHUNK_OVERLAP || '180', 10);
+
+// OpenAI 클라이언트 — 요청마다 새로 생성하지 않고 모듈 레벨에서 한 번만 초기화
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // JSON 요청 본문 파싱
 app.use(express.json());
@@ -242,10 +247,6 @@ app.post('/api/chat', async (req, res) => {
   }
 
   try {
-    const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-
     // 문서 근거 + 단순 추론 허용. [참고 본문]은 발췌일 수 있음 — 그 안의 규정만 사용
     const systemPrompt = `당신은 아래 [참고 본문]에만 근거해 답하는 노무 FAQ 어시스턴트입니다.
 [참고 본문]은 PDF에서 가져온 발췌일 수 있으나, 여기 나온 문장·숫자·조건만 근거로 사용하세요.
@@ -260,7 +261,7 @@ app.post('/api/chat', async (req, res) => {
 [참고 본문]
 ${docContext}`;
 
-    const completion = await client.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: OPENAI_MODEL,
       temperature: 0.2,
       max_tokens: 1024,
@@ -281,9 +282,14 @@ ${docContext}`;
 });
 
 // 서버 시작 — PDF 로드 후 Express 실행
-loadPdfTexts().then(() => {
-  app.listen(PORT, () => {
-    console.log(`서버 실행 중: http://localhost:${PORT}`);
-    console.log(`OpenAI 모델: ${OPENAI_MODEL}`);
+loadPdfTexts()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`서버 실행 중: http://localhost:${PORT}`);
+      console.log(`OpenAI 모델: ${OPENAI_MODEL}`);
+    });
+  })
+  .catch((err) => {
+    console.error('PDF 로드 실패:', err.message);
+    process.exit(1);
   });
-});

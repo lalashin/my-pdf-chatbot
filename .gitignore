@@ -1,4 +1,6 @@
 .env
+# 예전 Anthropic 키 백업 파일(실수로 푸시 방지)
+ANTHROPIC.env
 node_modules/
 .bkit/
 .vercel/
