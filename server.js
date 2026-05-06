@@ -10,8 +10,8 @@ const { OpenAI } = require('openai');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Groq API — baseURL 고정, 모델명만 변경하면 다른 모델로 전환 가능
-const HF_MODEL = process.env.HF_MODEL || 'llama-3.1-8b-instant';
+// SambaNova API — baseURL 고정, 모델명만 변경하면 다른 모델로 전환 가능
+const HF_MODEL = process.env.HF_MODEL || 'Qwen2.5-72B-Instruct';
 // 매 요청마다 시스템 프롬프트로 보내는 PDF 글자 수 상한(클수록 느려지고 비용 증가)
 const PDF_TEXT_MAX_CHARS = parseInt(process.env.PDF_TEXT_MAX_CHARS || '100000', 10);
 // 짧은 문서는 전체를 쓰고, 긴 문서는 키워드로 관련 구간만 발췌(전체보다 답변 정확도에 유리)
@@ -20,10 +20,10 @@ const RETRIEVAL_CONTEXT_MAX_CHARS = parseInt(process.env.RETRIEVAL_CONTEXT_MAX_C
 const CHUNK_SIZE = parseInt(process.env.RAG_CHUNK_SIZE || '1000', 10);
 const CHUNK_OVERLAP = parseInt(process.env.RAG_CHUNK_OVERLAP || '180', 10);
 
-// Groq 클라이언트 — openai 패키지 그대로 사용, baseURL만 Groq로 변경
+// SambaNova 클라이언트 — openai 패키지 그대로 사용, baseURL만 SambaNova로 변경
 const openai = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: 'https://api.groq.com/openai/v1',
+  apiKey: process.env.SAMBANOVA_API_KEY,
+  baseURL: 'https://api.sambanova.ai/v1',
 });
 
 // JSON 요청 본문 파싱
@@ -248,16 +248,35 @@ app.post('/api/chat', async (req, res) => {
   }
 
   try {
-    // 문서 근거 + 단순 추론 허용. [참고 본문]은 발췌일 수 있음 — 그 안의 규정만 사용
-    const systemPrompt = `당신은 아래 [참고 본문]에만 근거해 답하는 노무 FAQ 어시스턴트입니다.
-[참고 본문]은 PDF에서 가져온 발췌일 수 있으나, 여기 나온 문장·숫자·조건만 근거로 사용하세요.
+    // 역할·출력형식·말투·구조·길이를 명시한 시스템 프롬프트
+    const systemPrompt = `당신은 아래 [참고 본문]에만 근거해 답변하는 노무 전문 FAQ 어시스턴트입니다.
+[참고 본문]은 PDF에서 가져온 발췌일 수 있으나, 여기 나온 문장·숫자·조건만 근거로 사용하십시오.
 
-답변 규칙:
-1. 연차·휴가·근속 등 질문이면 본문에서 **연차/유급휴가/개근/근속년수/일수** 관련 문장을 먼저 찾아 인용하세요.
-2. 본문에 규정된 일수·조건이 있으면, "2년차"처럼 표현이 달라도 **같은 규정을 적용해** 답하세요. 키워드 글자가 완전 일치하지 않아도 됩니다.
-3. 본문에 **아무 규정도 없고** 질문과 무관한 내용뿐일 때만 "제공된 문서에서 해당 내용을 찾을 수 없습니다."라고 답하세요.
-4. 본문에 없는 다른 법령·판례·임의 수치는 만들지 마세요.
-5. 사용자 질문과 같은 언어로 답하세요.
+[역할]
+- 노무 법령 및 취업규칙 전문 어시스턴트로서, 정확하고 신뢰할 수 있는 정보를 제공합니다.
+
+[답변 구조 — 반드시 아래 순서를 따르십시오]
+1. **결론**: 질문에 대한 핵심 답변을 먼저 한 문장으로 제시합니다.
+2. **근거**: 참고 본문에서 관련 조항·문장을 인용하여 결론의 법적 근거를 설명합니다.
+3. **상세 설명**: 조건·예외·계산 방법 등을 항목별로 나누어 상세히 서술합니다.
+4. **유의사항**: 혼동하기 쉬운 부분이나 주의할 점이 있으면 별도 항목으로 안내합니다.
+
+[출력 형식]
+- 각 항목은 번호 또는 bullet(•)로 구분하여 작성합니다.
+- 조건·수치·기간 등 핵심 정보는 **굵게** 강조합니다.
+- 단락 간 줄바꿈을 사용하여 가독성을 높입니다.
+
+[말투]
+- 격식체(~입니다, ~합니다, ~하십시오)를 사용합니다.
+- 친절하되 전문적인 어조를 유지합니다.
+
+[길이]
+- 충분히 상세하게 서술하되, 참고 본문에 없는 내용은 추가하지 않습니다.
+
+[준수 사항]
+- 본문에 **아무 규정도 없고** 질문과 무관한 내용뿐일 때만 "제공된 문서에서 해당 내용을 찾을 수 없습니다."라고 답하십시오.
+- 본문에 없는 다른 법령·판례·임의 수치는 생성하지 마십시오.
+- 사용자 질문과 같은 언어로 답하십시오.
 
 [참고 본문]
 ${docContext}`;
@@ -277,7 +296,7 @@ ${docContext}`;
     res.json({ answer });
 
   } catch (error) {
-    console.error('Groq API 오류:', error.message);
+    console.error('SambaNova API 오류:', error.message);
     res.status(500).json({ error: '서버 오류가 발생했습니다.' });
   }
 });
@@ -287,7 +306,7 @@ loadPdfTexts()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`서버 실행 중: http://localhost:${PORT}`);
-      console.log(`Groq 모델: ${HF_MODEL}`);
+      console.log(`SambaNova 모델: ${HF_MODEL}`);
     });
   })
   .catch((err) => {

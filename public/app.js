@@ -72,11 +72,38 @@ function refreshQuotaUi() {
   }
 }
 
+/** 마크다운 → HTML 변환 (bot 답변 렌더링용) */
+function markdownToHtml(text) {
+  return text
+    // XSS 방지: HTML 특수문자 이스케이프 먼저 처리
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    // **굵게**
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // * 또는 • 로 시작하는 목록 항목 → <li>
+    .replace(/^[\*•]\s+(.+)$/gm, '<li>$1</li>')
+    // 연속된 <li> 묶음을 <ul>로 감싸기
+    .replace(/(<li>[\s\S]+?<\/li>)(?=\s*(?!<li>))/g, '<ul>$1</ul>')
+    // 빈 줄 → 단락 구분
+    .replace(/\n{2,}/g, '</p><p>')
+    // 단일 줄바꿈 → <br>
+    .replace(/\n/g, '<br>')
+    // 전체를 <p>로 감싸기
+    .replace(/^/, '<p>')
+    .replace(/$/, '</p>');
+}
+
 // 말풍선을 chat-box에 추가하는 함수
 function addMessage(text, type) {
   const msg = document.createElement('div');
   msg.classList.add(type); // 'user-msg' | 'bot-msg' | 'loading-msg'
-  msg.textContent = text;
+  // bot 답변만 마크다운 렌더링, 나머지는 텍스트 그대로
+  if (type === 'bot-msg') {
+    msg.innerHTML = markdownToHtml(text);
+  } else {
+    msg.textContent = text;
+  }
   chatBox.appendChild(msg);
   // 새 메시지가 추가될 때마다 최하단으로 자동 스크롤
   chatBox.scrollTop = chatBox.scrollHeight;
