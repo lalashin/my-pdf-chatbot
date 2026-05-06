@@ -1,4 +1,4 @@
-// 환경변수 로드 (.env 파일에서 OPENAI_API_KEY 읽기)
+// 환경변수 로드 (.env 에서 GROQ_API_KEY 등 읽기)
 require('dotenv').config();
 
 const express = require('express');
@@ -10,19 +10,20 @@ const { OpenAI } = require('openai');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 응답 속도: mini가 4o보다 훨씬 빠름. 품질 우선이면 .env에 OPENAI_MODEL=gpt-4o
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+// Groq API — baseURL 고정, 모델명만 변경하면 다른 모델로 전환 가능
+const HF_MODEL = process.env.HF_MODEL || 'llama-3.1-8b-instant';
 // 매 요청마다 시스템 프롬프트로 보내는 PDF 글자 수 상한(클수록 느려지고 비용 증가)
 const PDF_TEXT_MAX_CHARS = parseInt(process.env.PDF_TEXT_MAX_CHARS || '100000', 10);
 // 짧은 문서는 전체를 쓰고, 긴 문서는 키워드로 관련 구간만 발췌(전체보다 답변 정확도에 유리)
-const CONTEXT_FULL_DOC_THRESHOLD = parseInt(process.env.CONTEXT_FULL_DOC_THRESHOLD || '14000', 10);
-const RETRIEVAL_CONTEXT_MAX_CHARS = parseInt(process.env.RETRIEVAL_CONTEXT_MAX_CHARS || '32000', 10);
+const CONTEXT_FULL_DOC_THRESHOLD = parseInt(process.env.CONTEXT_FULL_DOC_THRESHOLD || '2000', 10);
+const RETRIEVAL_CONTEXT_MAX_CHARS = parseInt(process.env.RETRIEVAL_CONTEXT_MAX_CHARS || '2500', 10);
 const CHUNK_SIZE = parseInt(process.env.RAG_CHUNK_SIZE || '1000', 10);
 const CHUNK_OVERLAP = parseInt(process.env.RAG_CHUNK_OVERLAP || '180', 10);
 
-// OpenAI 클라이언트 — 요청마다 새로 생성하지 않고 모듈 레벨에서 한 번만 초기화
+// Groq 클라이언트 — openai 패키지 그대로 사용, baseURL만 Groq로 변경
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: 'https://api.groq.com/openai/v1',
 });
 
 // JSON 요청 본문 파싱
@@ -262,7 +263,7 @@ app.post('/api/chat', async (req, res) => {
 ${docContext}`;
 
     const completion = await openai.chat.completions.create({
-      model: OPENAI_MODEL,
+      model: HF_MODEL,
       temperature: 0.2,
       max_tokens: 1024,
       messages: [
@@ -276,7 +277,7 @@ ${docContext}`;
     res.json({ answer });
 
   } catch (error) {
-    console.error('OpenAI API 오류:', error.message);
+    console.error('Groq API 오류:', error.message);
     res.status(500).json({ error: '서버 오류가 발생했습니다.' });
   }
 });
@@ -286,7 +287,7 @@ loadPdfTexts()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`서버 실행 중: http://localhost:${PORT}`);
-      console.log(`OpenAI 모델: ${OPENAI_MODEL}`);
+      console.log(`Groq 모델: ${HF_MODEL}`);
     });
   })
   .catch((err) => {
